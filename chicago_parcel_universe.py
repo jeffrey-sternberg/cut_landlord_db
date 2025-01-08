@@ -28,3 +28,23 @@ parcel_universe
 
 #Count table by 'class' which is the primary way to filter down to renter classed properties
 parcel_universe.groupby(['class'])['pin'].count().to_frame().reset_index()
+
+## Need to spatial join this parcel universe with the parcel shapefiles for mapping to update the geometry from coordinates to polygon for mapping accordingly and buffer merge below. 
+offset = ['0','50000','100000','150000','200000','250000','300000','350000','400000','450000','500000','550000','600000']
+parcel_list = []
+
+for o in offset:
+    r = requests.get('https://datacatalog.cookcountyil.gov/resource/77tz-riq7.json?$limit=50000&MUNICIPALITY=Chicago&$offset='+o)
+    data = r.json()
+    parcels = pd.json_normalize(data)
+    print(o)
+    print(len(parcel_list))
+    parcel_list.append(parcels)
+
+parcel_shps = pd.concat(parcel_list).filter(['pin10','the_geom.coordinates'],axis=1)
+parcel_shps['geometry'] = [Polygon(item[0][0]) for item in parcel_shps['the_geom.coordinates']]
+parcel_geo = gpd.GeoDataFrame(parcel_shps, geometry='geometry',crs = 'EPSG:4326')
+parcel_geo.plot()
+
+#Join them
+parcel_poly = parcel_universe.merge(parcel_geo, how='left', on='pin10')
